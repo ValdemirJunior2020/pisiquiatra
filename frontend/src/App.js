@@ -1,0 +1,431 @@
+// frontend/src/App.js
+
+import React, { useMemo, useRef, useState } from "react";
+import {
+  ArrowRight,
+  BrainCircuit,
+  CheckCircle2,
+  Flame,
+  LineChart,
+  Loader2,
+  MessageCircleHeart,
+  PiggyBank,
+  ShieldCheck,
+  Sparkles,
+  UserRound
+} from "lucide-react";
+import { db, collection, addDoc } from "./firebase";
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+
+const questions = [
+  "Quando você pensa em investir na bolsa ou abrir um grande negócio, qual é o primeiro medo teológico ou emocional que vem à sua mente?",
+  "Você já se pegou pensando encobertamente que pessoas ricas são inerentemente egoístas, gananciosas ou frias?",
+  "Se você multiplicasse seu patrimônio por 10 hoje, o que sua comunidade ou igreja diria sobre você pelas suas costas?",
+  "Em uma escala de 1 a 5, quanto você sente que está enterrando seus talentos financeiros por puro medo de perder o controle?",
+  "O que te impede hoje de começar a estudar o mercado financeiro e a ciência dos investimentos?"
+];
+
+const initialAssistantMessage = (name, answers) => {
+  const fear = answers?.[0] || "medo não identificado";
+  const scale = answers?.[3] || "sem escala informada";
+
+  return `Olá, ${name}. Eu li seu diagnóstico: seu medo principal parece ser "${fear}", e sua escala de talentos enterrados está em "${scale}". Isso não é só financeiro; isso é amígdala fazendo culto de domingo com cortisol no microfone. Dr. Nate chegou para desmontar esse teatro com Bíblia, neurociência e um pouco de vergonha santa. Agora me diga: Como foi o seu dia hoje?`;
+};
+
+function App() {
+  const [step, setStep] = useState("welcome");
+  const [fullName, setFullName] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [currentAnswer, setCurrentAnswer] = useState("");
+  const [answers, setAnswers] = useState([]);
+  const [diagnosisSaving, setDiagnosisSaving] = useState(false);
+  const [diagnosisId, setDiagnosisId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [error, setError] = useState("");
+  const chatEndRef = useRef(null);
+
+  const progress = useMemo(
+    () => Math.round(((questionIndex + 1) / questions.length) * 100),
+    [questionIndex]
+  );
+
+  const scrollToBottom = () => {
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+  };
+
+  const saveUserName = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    const cleanName = fullName.trim();
+
+    if (!cleanName) {
+      setError("Digite seu nome completo para começar.");
+      return;
+    }
+
+    try {
+      setNameSaving(true);
+      await addDoc(collection(db, "usuarios_terapia"), {
+        nomeCompleto: cleanName,
+        criadoEm: new Date().toISOString(),
+        origem: "Mente Próspera"
+      });
+      setStep("onboarding");
+    } catch (err) {
+      console.error(err);
+      setError("Não consegui salvar seu nome no Firebase. Verifique as regras do Firestore.");
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
+  const saveAnswer = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    const cleanAnswer = currentAnswer.trim();
+
+    if (!cleanAnswer) {
+      setError("Responda antes de continuar.");
+      return;
+    }
+
+    const nextAnswers = [...answers, cleanAnswer];
+
+    if (questionIndex < questions.length - 1) {
+      setAnswers(nextAnswers);
+      setCurrentAnswer("");
+      setQuestionIndex((prev) => prev + 1);
+      return;
+    }
+
+    try {
+      setDiagnosisSaving(true);
+
+      const diagnosticPayload = {
+        nomeCompleto: fullName.trim(),
+        respostas: {
+          pergunta1: nextAnswers[0],
+          pergunta2: nextAnswers[1],
+          pergunta3: nextAnswers[2],
+          pergunta4: nextAnswers[3],
+          pergunta5: nextAnswers[4]
+        },
+        perguntas: questions,
+        criadoEm: new Date().toISOString(),
+        status: "completed"
+      };
+
+      const docRef = await addDoc(collection(db, "diagnosticos_financeiros"), diagnosticPayload);
+
+      setAnswers(nextAnswers);
+      setDiagnosisId(docRef.id);
+
+      const assistantStart = {
+        role: "assistant",
+        content: initialAssistantMessage(fullName.trim(), nextAnswers),
+        createdAt: new Date().toISOString()
+      };
+
+      setMessages([assistantStart]);
+      setStep("dashboard");
+      scrollToBottom();
+    } catch (err) {
+      console.error(err);
+      setError("Não consegui salvar seu diagnóstico no Firebase. Verifique as regras do Firestore.");
+    } finally {
+      setDiagnosisSaving(false);
+    }
+  };
+
+  const sendChatMessage = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    const cleanInput = chatInput.trim();
+
+    if (!cleanInput || chatLoading) {
+      return;
+    }
+
+    const userMessage = {
+      role: "user",
+      content: cleanInput,
+      createdAt: new Date().toISOString()
+    };
+
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
+    setChatInput("");
+    setChatLoading(true);
+    scrollToBottom();
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: fullName.trim(),
+          diagnosisId,
+          diagnosis: {
+            questions,
+            answers
+          },
+          messages: nextMessages.map(({ role, content }) => ({ role, content }))
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Erro ao chamar o servidor.");
+      }
+
+      const assistantMessage = {
+        role: "assistant",
+        content: data.reply,
+        createdAt: new Date().toISOString()
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      scrollToBottom();
+    } catch (err) {
+      console.error(err);
+      setError(
+        err.message ||
+          "Não consegui falar com o Dr. Nate agora. Confirme se o backend está rodando."
+      );
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  return (
+    <main className="app-shell">
+      <div className="orb orb-one" />
+      <div className="orb orb-two" />
+      <div className="orb orb-three" />
+
+      <section className="hero-bar">
+        <div className="brand-mark">
+          <BrainCircuit size={22} />
+        </div>
+        <div>
+          <p className="eyebrow">Mente Próspera</p>
+          <h1>Dr. Nate Therapy OS</h1>
+        </div>
+      </section>
+
+      {step === "welcome" && (
+        <section className="screen-center">
+          <div className="glass-card welcome-card">
+            <div className="icon-pill">
+              <Sparkles size={18} />
+              Terapia, fé e neurociência financeira
+            </div>
+
+            <h2>Vamos começar com seu nome.</h2>
+            <p className="muted">
+              Seu diagnóstico será salvo com segurança no Firestore para o Dr. Nate entender
+              seu padrão de medo, procrastinação e propósito.
+            </p>
+
+            <form onSubmit={saveUserName} className="form-stack">
+              <label htmlFor="fullName">Nome completo</label>
+              <div className="input-wrap">
+                <UserRound size={18} />
+                <input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  placeholder="Digite seu nome completo"
+                  autoComplete="name"
+                />
+              </div>
+
+              {error && <p className="error-message">{error}</p>}
+
+              <button className="primary-button" type="submit" disabled={nameSaving}>
+                {nameSaving ? (
+                  <>
+                    <Loader2 className="spin" size={18} />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    Começar diagnóstico
+                    <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {step === "onboarding" && (
+        <section className="screen-center">
+          <div className="glass-card question-card">
+            <div className="question-topline">
+              <span>
+                Pergunta {questionIndex + 1} de {questions.length}
+              </span>
+              <strong>{progress}%</strong>
+            </div>
+
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${progress}%` }} />
+            </div>
+
+            <h2>{questions[questionIndex]}</h2>
+
+            <form onSubmit={saveAnswer} className="form-stack">
+              <label htmlFor="answer">Sua resposta</label>
+              <textarea
+                id="answer"
+                value={currentAnswer}
+                onChange={(event) => setCurrentAnswer(event.target.value)}
+                placeholder="Responda com honestidade. Sem máscara religiosa, sem pose, sem teatro..."
+                rows={6}
+              />
+
+              {error && <p className="error-message">{error}</p>}
+
+              <button className="primary-button" type="submit" disabled={diagnosisSaving}>
+                {diagnosisSaving ? (
+                  <>
+                    <Loader2 className="spin" size={18} />
+                    Salvando diagnóstico...
+                  </>
+                ) : questionIndex === questions.length - 1 ? (
+                  <>
+                    Finalizar e abrir dashboard
+                    <CheckCircle2 size={18} />
+                  </>
+                ) : (
+                  <>
+                    Próxima pergunta
+                    <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {step === "dashboard" && (
+        <section className="dashboard">
+          <div className="dashboard-header glass-card">
+            <div>
+              <p className="eyebrow">Daily Check-in</p>
+              <h2>Bem-vindo, {fullName.trim().split(" ")[0]}.</h2>
+              <p className="muted">
+                Dr. Nate vai confrontar medo, desculpa espiritualizada e procrastinação com
+                graça, ciência e verdade.
+              </p>
+            </div>
+            <div className="status-chip">
+              <ShieldCheck size={16} />
+              Diagnóstico salvo
+            </div>
+          </div>
+
+          <div className="bento-grid">
+            <article className="glass-card chat-card">
+              <div className="card-header">
+                <div>
+                  <p className="eyebrow">Sessão com IA</p>
+                  <h3>
+                    <MessageCircleHeart size={22} />
+                    Dr. Nate
+                  </h3>
+                </div>
+                <span className="live-dot">online</span>
+              </div>
+
+              <div className="chat-window">
+                {messages.map((message, index) => (
+                  <div
+                    className={`message-row ${
+                      message.role === "user" ? "message-user" : "message-assistant"
+                    }`}
+                    key={`${message.role}-${index}-${message.createdAt}`}
+                  >
+                    <div className="message-bubble">
+                      <p>{message.content}</p>
+                    </div>
+                  </div>
+                ))}
+
+                {chatLoading && (
+                  <div className="message-row message-assistant">
+                    <div className="message-bubble typing">
+                      <Loader2 className="spin" size={16} />
+                      Dr. Nate está preparando uma exortação terapêutica...
+                    </div>
+                  </div>
+                )}
+
+                <div ref={chatEndRef} />
+              </div>
+
+              <form onSubmit={sendChatMessage} className="chat-form">
+                <input
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  placeholder="Conte como foi seu dia hoje..."
+                />
+                <button type="submit" disabled={chatLoading || !chatInput.trim()}>
+                  <ArrowRight size={18} />
+                </button>
+              </form>
+
+              {error && <p className="error-message">{error}</p>}
+            </article>
+
+            <article className="glass-card metric-card">
+              <div className="metric-icon">
+                <Flame size={22} />
+              </div>
+              <p className="eyebrow">Tratamento</p>
+              <h3>Medo exposto</h3>
+              <p>{answers[0]}</p>
+            </article>
+
+            <article className="glass-card metric-card">
+              <div className="metric-icon">
+                <PiggyBank size={22} />
+              </div>
+              <p className="eyebrow">Crença sobre riqueza</p>
+              <h3>Dinheiro amplifica o coração</h3>
+              <p>{answers[1]}</p>
+            </article>
+
+            <article className="glass-card metric-card wide-mobile">
+              <div className="metric-icon">
+                <LineChart size={22} />
+              </div>
+              <p className="eyebrow">Talentos financeiros</p>
+              <h3>Escala informada: {answers[3]}</h3>
+              <p>
+                A meta não é idolatrar dinheiro. É parar de usar falsa humildade como
+                cobertor para medo.
+              </p>
+            </article>
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
+export default App;
