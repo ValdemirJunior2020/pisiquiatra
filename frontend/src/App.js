@@ -19,19 +19,65 @@ import { db, collection, addDoc } from "./firebase";
 const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
 const questions = [
-  "Quando você pensa em investir na bolsa ou abrir um grande negócio, qual é o primeiro medo teológico ou emocional que vem à sua mente?",
-  "Você já se pegou pensando encobertamente que pessoas ricas são inerentemente egoístas, gananciosas ou frias?",
-  "Se você multiplicasse seu patrimônio por 10 hoje, o que sua comunidade ou igreja diria sobre você pelas suas costas?",
-  "Em uma escala de 1 a 5, quanto você sente que está enterrando seus talentos financeiros por puro medo de perder o controle?",
-  "O que te impede hoje de começar a estudar o mercado financeiro e a ciência dos investimentos?"
+  {
+    key: "medo_inicial",
+    text: "Quando você pensa em investir na bolsa ou abrir um grande negócio, qual é o primeiro medo teológico ou emocional que vem à sua mente?"
+  },
+  {
+    key: "crenca_sobre_ricos",
+    text: "Você já se pegou pensando encobertamente que pessoas ricas são inerentemente egoístas, gananciosas ou frias?"
+  },
+  {
+    key: "medo_da_comunidade",
+    text: "Se você multiplicasse seu patrimônio por 10 hoje, o que sua comunidade ou igreja diria sobre você pelas suas costas?"
+  },
+  {
+    key: "talentos_enterrados",
+    text: "Em uma escala de 1 a 5, quanto você sente que está enterrando seus talentos financeiros por puro medo de perder o controle?"
+  },
+  {
+    key: "bloqueio_estudo",
+    text: "O que te impede hoje de começar a estudar o mercado financeiro e a ciência dos investimentos?"
+  },
+  {
+    key: "historia_com_dinheiro",
+    text: "Qual frase sobre dinheiro você mais ouviu na infância ou na igreja que ainda influencia suas decisões hoje?"
+  },
+  {
+    key: "culpa_ao_prosperar",
+    text: "Quando você imagina ganhar muito dinheiro de forma honesta, você sente paz, culpa, medo ou empolgação? Explique."
+  },
+  {
+    key: "procrastinacao_financeira",
+    text: "Qual atitude financeira você sabe que deveria tomar, mas vem adiando há meses ou anos?"
+  },
+  {
+    key: "imagem_de_deus",
+    text: "Você acredita que Deus se agrada quando você cresce, multiplica recursos e prospera com propósito? Por quê?"
+  },
+  {
+    key: "primeiro_passo",
+    text: "Qual seria o primeiro pequeno passo prático que você poderia tomar nos próximos 7 dias para sair do medo e começar a aprender sobre investimentos ou negócios?"
+  }
 ];
 
-const initialAssistantMessage = (name, answers) => {
-  const fear = answers?.[0] || "medo não identificado";
-  const scale = answers?.[3] || "sem escala informada";
+function buildLocalFallbackDiagnosis(name, answersMap) {
+  return `Diagnóstico inicial de ${name}:
 
-  return `Olá, ${name}. Eu li seu diagnóstico: seu medo principal parece ser "${fear}", e sua escala de talentos enterrados está em "${scale}". Isso não é só financeiro; isso é amígdala fazendo culto de domingo com cortisol no microfone. Dr. Nate chegou para desmontar esse teatro com Bíblia, neurociência e um pouco de vergonha santa. Agora me diga: Como foi o seu dia hoje?`;
-};
+Você apresenta um padrão de bloqueio financeiro mais ligado ao medo de perda, falta de tempo e preocupação espiritual/social do que a uma rejeição real da prosperidade.
+
+Seu medo principal parece ser: "${answersMap.medo_inicial || "não informado"}".
+
+O ponto positivo é que você não demonstra odiar pessoas prósperas. Isso mostra que sua mente não está totalmente presa na crença de que dinheiro é mal. Porém, existe uma tensão entre prosperar, manter humildade e não ser mal interpretado pela comunidade.
+
+Seu nível de talentos enterrados foi: "${answersMap.talentos_enterrados || "não informado"}".
+
+Tratamento inicial do Dr. Nate:
+Você não precisa idolatrar dinheiro. Você precisa parar de chamar medo de “prudência espiritual”. A parábola dos talentos não elogia quem enterrou recurso por medo. Ela confronta esse padrão. Seu próximo passo é simples: estudar com constância, começar pequeno, aprender gestão de risco e tratar prosperidade como mordomia, não como vaidade.
+
+Pergunta para hoje:
+Como foi o seu dia hoje? Onde você percebeu procrastinação, medo ou desculpa disfarçada de humildade?`;
+}
 
 function App() {
   const [step, setStep] = useState("welcome");
@@ -42,6 +88,7 @@ function App() {
   const [answers, setAnswers] = useState([]);
   const [diagnosisSaving, setDiagnosisSaving] = useState(false);
   const [diagnosisId, setDiagnosisId] = useState(null);
+  const [diagnosisText, setDiagnosisText] = useState("");
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -57,6 +104,13 @@ function App() {
     setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
   };
 
+  const createAnswersMap = (answersArray) => {
+    return questions.reduce((acc, question, index) => {
+      acc[question.key] = answersArray[index] || "";
+      return acc;
+    }, {});
+  };
+
   const saveUserName = async (event) => {
     event.preventDefault();
     setError("");
@@ -70,17 +124,46 @@ function App() {
 
     try {
       setNameSaving(true);
+
       await addDoc(collection(db, "usuarios_terapia"), {
         nomeCompleto: cleanName,
         criadoEm: new Date().toISOString(),
         origem: "Mente Próspera"
       });
+
       setStep("onboarding");
     } catch (err) {
       console.error(err);
       setError("Não consegui salvar seu nome no Firebase. Verifique as regras do Firestore.");
     } finally {
       setNameSaving(false);
+    }
+  };
+
+  const generateDiagnosis = async (answersMap) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/diagnosis`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: fullName.trim(),
+          questions,
+          answers: answersMap
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Erro ao gerar diagnóstico.");
+      }
+
+      return data.diagnosis;
+    } catch (err) {
+      console.error("Diagnosis API failed. Using fallback:", err);
+      return buildLocalFallbackDiagnosis(fullName.trim(), answersMap);
     }
   };
 
@@ -107,28 +190,30 @@ function App() {
     try {
       setDiagnosisSaving(true);
 
+      const answersMap = createAnswersMap(nextAnswers);
+      const generatedDiagnosis = await generateDiagnosis(answersMap);
+
       const diagnosticPayload = {
         nomeCompleto: fullName.trim(),
-        respostas: {
-          pergunta1: nextAnswers[0],
-          pergunta2: nextAnswers[1],
-          pergunta3: nextAnswers[2],
-          pergunta4: nextAnswers[3],
-          pergunta5: nextAnswers[4]
-        },
-        perguntas: questions,
+        perguntas: questions.map((item) => item.text),
+        respostas: answersMap,
+        diagnosticoInicial: generatedDiagnosis,
         criadoEm: new Date().toISOString(),
         status: "completed"
       };
 
-      const docRef = await addDoc(collection(db, "diagnosticos_financeiros"), diagnosticPayload);
+      const docRef = await addDoc(
+        collection(db, "diagnosticos_financeiros"),
+        diagnosticPayload
+      );
 
       setAnswers(nextAnswers);
       setDiagnosisId(docRef.id);
+      setDiagnosisText(generatedDiagnosis);
 
       const assistantStart = {
         role: "assistant",
-        content: initialAssistantMessage(fullName.trim(), nextAnswers),
+        content: generatedDiagnosis,
         createdAt: new Date().toISOString()
       };
 
@@ -166,6 +251,8 @@ function App() {
     scrollToBottom();
 
     try {
+      const answersMap = createAnswersMap(answers);
+
       const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: {
@@ -174,9 +261,10 @@ function App() {
         body: JSON.stringify({
           name: fullName.trim(),
           diagnosisId,
+          diagnosisText,
           diagnosis: {
             questions,
-            answers
+            answers: answersMap
           },
           messages: nextMessages.map(({ role, content }) => ({ role, content }))
         })
@@ -285,7 +373,7 @@ function App() {
               <div className="progress-fill" style={{ width: `${progress}%` }} />
             </div>
 
-            <h2>{questions[questionIndex]}</h2>
+            <h2>{questions[questionIndex].text}</h2>
 
             <form onSubmit={saveAnswer} className="form-stack">
               <label htmlFor="answer">Sua resposta</label>
@@ -303,11 +391,11 @@ function App() {
                 {diagnosisSaving ? (
                   <>
                     <Loader2 className="spin" size={18} />
-                    Salvando diagnóstico...
+                    Gerando diagnóstico...
                   </>
                 ) : questionIndex === questions.length - 1 ? (
                   <>
-                    Finalizar e abrir dashboard
+                    Gerar meu diagnóstico
                     <CheckCircle2 size={18} />
                   </>
                 ) : (
@@ -326,11 +414,11 @@ function App() {
         <section className="dashboard">
           <div className="dashboard-header glass-card">
             <div>
-              <p className="eyebrow">Daily Check-in</p>
+              <p className="eyebrow">Diagnóstico imediato</p>
               <h2>Bem-vindo, {fullName.trim().split(" ")[0]}.</h2>
               <p className="muted">
-                Dr. Nate vai confrontar medo, desculpa espiritualizada e procrastinação com
-                graça, ciência e verdade.
+                Seu diagnóstico já foi gerado e salvo. Agora o Dr. Nate continua o
+                acompanhamento diário.
               </p>
             </div>
             <div className="status-chip">
@@ -396,9 +484,9 @@ function App() {
               <div className="metric-icon">
                 <Flame size={22} />
               </div>
-              <p className="eyebrow">Tratamento</p>
-              <h3>Medo exposto</h3>
-              <p>{answers[0]}</p>
+              <p className="eyebrow">Medo principal</p>
+              <h3>Raiz emocional</h3>
+              <p>{createAnswersMap(answers).medo_inicial}</p>
             </article>
 
             <article className="glass-card metric-card">
@@ -407,7 +495,7 @@ function App() {
               </div>
               <p className="eyebrow">Crença sobre riqueza</p>
               <h3>Dinheiro amplifica o coração</h3>
-              <p>{answers[1]}</p>
+              <p>{createAnswersMap(answers).crenca_sobre_ricos}</p>
             </article>
 
             <article className="glass-card metric-card wide-mobile">
@@ -415,7 +503,7 @@ function App() {
                 <LineChart size={22} />
               </div>
               <p className="eyebrow">Talentos financeiros</p>
-              <h3>Escala informada: {answers[3]}</h3>
+              <h3>Escala: {createAnswersMap(answers).talentos_enterrados}</h3>
               <p>
                 A meta não é idolatrar dinheiro. É parar de usar falsa humildade como
                 cobertor para medo.
