@@ -18,46 +18,50 @@ import { db, collection, addDoc } from "./firebase";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
+// frontend/src/App.js
+
+// frontend/src/App.js
+
 const questions = [
   {
-    key: "medo_inicial",
-    text: "Quando você pensa em investir na bolsa ou abrir um grande negócio, qual é o primeiro medo teológico ou emocional que vem à sua mente?"
+    key: "visao_de_futuro",
+    text: "Quando você imagina Deus te levando para uma vida mais frutífera, organizada e próspera, qual é o primeiro medo ou dúvida que aparece no seu coração?"
   },
   {
     key: "crenca_sobre_ricos",
-    text: "Você já se pegou pensando encobertamente que pessoas ricas são inerentemente egoístas, gananciosas ou frias?"
+    text: "Você já pensou, mesmo em silêncio, que pessoas com muito dinheiro geralmente são arrogantes, egoístas, gananciosas ou frias?"
   },
   {
-    key: "medo_da_comunidade",
-    text: "Se você multiplicasse seu patrimônio por 10 hoje, o que sua comunidade ou igreja diria sobre você pelas suas costas?"
+    key: "medo_do_julgamento",
+    text: "Se sua vida financeira melhorasse muito, o que você acha que sua família, comunidade ou igreja pensaria sobre você?"
   },
   {
-    key: "talentos_enterrados",
-    text: "Em uma escala de 1 a 5, quanto você sente que está enterrando seus talentos financeiros por puro medo de perder o controle?"
+    key: "talentos_parados",
+    text: "Em uma escala de 1 a 5, quanto você sente que está deixando talentos, ideias, dons ou oportunidades paradas por medo, insegurança ou falta de direção?"
   },
   {
-    key: "bloqueio_estudo",
-    text: "O que te impede hoje de começar a estudar o mercado financeiro e a ciência dos investimentos?"
+    key: "bloqueio_principal",
+    text: "O que mais te impede hoje de crescer, aprender, organizar melhor sua vida financeira ou desenvolver algo que Deus colocou no seu coração?"
   },
   {
-    key: "historia_com_dinheiro",
-    text: "Qual frase sobre dinheiro você mais ouviu na infância ou na igreja que ainda influencia suas decisões hoje?"
+    key: "frase_sobre_dinheiro",
+    text: "Qual frase sobre dinheiro, riqueza ou prosperidade você mais ouviu na família, na igreja ou na vida que ainda influencia sua mente hoje?"
   },
   {
-    key: "culpa_ao_prosperar",
-    text: "Quando você imagina ganhar muito dinheiro de forma honesta, você sente paz, culpa, medo ou empolgação? Explique."
+    key: "sentimento_ao_prosperar",
+    text: "Quando você imagina Deus te abençoando financeiramente de forma honesta, você sente paz, culpa, medo, dúvida ou empolgação? Explique."
   },
   {
-    key: "procrastinacao_financeira",
-    text: "Qual atitude financeira você sabe que deveria tomar, mas vem adiando há meses ou anos?"
+    key: "area_travada",
+    text: "Qual área da sua vida parece mais travada hoje: finanças, disciplina, fé, coragem, conhecimento, visão de futuro ou ação prática?"
   },
   {
     key: "imagem_de_deus",
-    text: "Você acredita que Deus se agrada quando você cresce, multiplica recursos e prospera com propósito? Por quê?"
+    text: "Você acredita que Deus se agrada quando uma pessoa administra bem seus recursos, cresce com sabedoria e usa prosperidade para servir outras pessoas? Por quê?"
   },
   {
     key: "primeiro_passo",
-    text: "Qual seria o primeiro pequeno passo prático que você poderia tomar nos próximos 7 dias para sair do medo e começar a aprender sobre investimentos ou negócios?"
+    text: "Qual pequeno passo você poderia dar nos próximos 7 dias para sair da estagnação e começar a caminhar com mais sabedoria, fé e responsabilidade?"
   }
 ];
 

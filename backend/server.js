@@ -42,6 +42,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+const CHAT_TOKEN_LIMIT = Number(process.env.CHAT_TOKEN_LIMIT || 350);
+const DIAGNOSIS_TOKEN_LIMIT = Number(process.env.DIAGNOSIS_TOKEN_LIMIT || 600);
+const REPORT_TOKEN_LIMIT = Number(process.env.REPORT_TOKEN_LIMIT || 900);
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4";
+
 const SYSTEM_PROMPT = `You are Dr. Natanael Silva (Dr. Nate), a Christian psychiatrist, elite neuroscientist, and expert in human purpose. Blend real neuroscience (amygdala, dopamine, cortisol) with biblical truths (Parable of the Talents, Proverbs). Use sharp, stand-up comedy humor to destroy 'spiritual' excuses for laziness and fear of investing. Destroy the false humility that 'money corrupts' by proving money amplifies the heart. If the user is paralyzed by fear, give them a comedic 'spiritual scolding' but end by empowering them to reign and prosper. Ask about their day, fish for triggers of procrastination or victimhood, and apply this treatment.
 
 Safety rules:
@@ -50,7 +55,8 @@ Safety rules:
 - If the user mentions self-harm, suicide, abuse, psychosis, or immediate danger, respond with compassion and urge immediate emergency help or crisis support.
 - Do not give guaranteed financial returns or personalized investment instructions.
 - Encourage studying, budgeting, stewardship, counsel, and wise risk management.
-- Keep answers practical, warm, funny, direct, and empowering.`;
+- Keep answers practical, warm, funny, direct, and empowering.
+- Keep chat answers concise unless the user asks for depth.`;
 
 const DIAGNOSIS_PROMPT = `You are Dr. Natanael Silva, also known as Dr. Nate.
 
@@ -72,22 +78,22 @@ Do not tell the user exactly what stock or asset to buy.
 
 Your diagnosis must include:
 
-1. "Diagnóstico Principal"
+1. Diagnóstico Principal
 Explain the user's main mental/spiritual block.
 
-2. "Raiz Emocional"
+2. Raiz Emocional
 Identify fear, shame, false humility, fear of judgment, procrastination, or scarcity mindset.
 
-3. "Leitura Neurocientífica"
+3. Leitura Neurocientífica
 Mention amygdala, cortisol, dopamine, habit loop, or avoidance behavior in a simple way.
 
-4. "Leitura Bíblica"
+4. Leitura Bíblica
 Use biblical wisdom such as Parable of the Talents, Proverbs, stewardship, diligence, wisdom, or purpose.
 
-5. "Correção do Dr. Nate"
-Give a comedic but loving correction. Example style: "Meu irmão, isso não é humildade, isso é medo usando terno de diácono."
+5. Correção do Dr. Nate
+Give a comedic but loving correction.
 
-6. "Plano dos Próximos 7 Dias"
+6. Plano dos Próximos 7 Dias
 Give 3 practical steps:
 - one study step
 - one money organization step
@@ -111,6 +117,7 @@ function buildDiagnosisSummary(diagnosis) {
     return diagnosis.questions
       .map((question, index) => {
         const questionText = typeof question === "string" ? question : question.text;
+
         return `Q${index + 1}: ${questionText}\nA${index + 1}: ${
           diagnosis.answers[index] || "No answer"
         }`;
@@ -166,9 +173,9 @@ app.post("/api/diagnosis", async (req, res) => {
       : "";
 
     const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4",
-      temperature: 0.9,
-      max_tokens: 1000,
+      model: OPENAI_MODEL,
+      temperature: 0.85,
+      max_tokens: DIAGNOSIS_TOKEN_LIMIT,
       messages: [
         {
           role: "system",
@@ -205,6 +212,74 @@ Gere agora o diagnóstico inicial completo em português.`
   }
 });
 
+app.post("/api/church-report", async (req, res) => {
+  try {
+    const { stats, records } = req.body;
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({
+        error: "OPENAI_API_KEY is missing on the backend server."
+      });
+    }
+
+    if (!Array.isArray(records)) {
+      return res.status(400).json({
+        error: "Records are required."
+      });
+    }
+
+    const safeRecords = records.slice(0, 150);
+
+    const completion = await openai.chat.completions.create({
+      model: OPENAI_MODEL,
+      temperature: 0.7,
+      max_tokens: REPORT_TOKEN_LIMIT,
+      messages: [
+        {
+          role: "system",
+          content: `Você é Dr. Nate, um psiquiatra cristão, neurocientista e comunicador estratégico.
+
+Gere um relatório geral em português para ser apresentado a uma igreja com base em respostas agregadas de uma pesquisa sobre prosperidade, medo financeiro, investimento, mordomia e crenças espirituais sobre dinheiro.
+
+Regras:
+- Não exponha nomes.
+- Não cite respostas individuais de forma que identifique alguém.
+- Seja pastoral, claro, forte e respeitoso.
+- Use linguagem cristã, mas também prática.
+- Inclua Parábola dos Talentos, Provérbios, mordomia e sabedoria.
+- Inclua leitura emocional/neurocientífica simples: medo, amígdala, cortisol, evitação e hábitos.
+- Inclua plano de ação para a igreja.
+- Não dê recomendação específica de investimento.
+- Formato pronto para apresentar em reunião.
+- Seja objetivo.`
+        },
+        {
+          role: "user",
+          content: `Estatísticas gerais:
+${JSON.stringify(stats, null, 2)}
+
+Dados agregados dos diagnósticos:
+${JSON.stringify(safeRecords, null, 2)}
+
+Gere um relatório geral para apresentar para a igreja.`
+        }
+      ]
+    });
+
+    const report =
+      completion.choices?.[0]?.message?.content ||
+      "Não consegui gerar o relatório agora.";
+
+    res.json({ report });
+  } catch (error) {
+    console.error("Church report error:", error);
+
+    res.status(500).json({
+      error: error?.message || "Erro ao gerar relatório geral da igreja."
+    });
+  }
+});
+
 app.post("/api/chat", async (req, res) => {
   try {
     const { name, diagnosis, diagnosisText, messages } = req.body;
@@ -228,18 +303,18 @@ app.post("/api/chat", async (req, res) => {
           ["user", "assistant"].includes(message.role) &&
           message.content
       )
-      .slice(-16)
+      .slice(-6)
       .map((message) => ({
         role: message.role,
-        content: String(message.content).slice(0, 5000)
+        content: String(message.content).slice(0, 1500)
       }));
 
     const diagnosisSummary = buildDiagnosisSummary(diagnosis);
 
     const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4",
-      temperature: 0.85,
-      max_tokens: 700,
+      model: OPENAI_MODEL,
+      temperature: 0.8,
+      max_tokens: CHAT_TOKEN_LIMIT,
       messages: [
         {
           role: "system",
@@ -277,6 +352,7 @@ ${diagnosisSummary}`
 
 app.use((err, _req, res, _next) => {
   console.error("Server error:", err);
+
   res.status(500).json({
     error: err.message || "Unexpected server error."
   });
