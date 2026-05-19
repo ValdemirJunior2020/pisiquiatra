@@ -1,4 +1,4 @@
-// frontend/src/App.js
+
 
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -15,75 +15,75 @@ import {
   UserRound
 } from "lucide-react";
 import { db, collection, addDoc } from "./firebase";
+import { translations } from "./i18n";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+const MAX_CHAT_MESSAGES = 6;
 
-// frontend/src/App.js
+function buildLocalFallbackDiagnosis(name, answersMap, language) {
+  if (language === "en") {
+    return `Initial diagnosis for ${name}:
 
-// frontend/src/App.js
+Your answers show that God may be highlighting areas of growth, stewardship, courage, and responsibility in your life.
 
-const questions = [
-  {
-    key: "visao_de_futuro",
-    text: "Quando você imagina Deus te levando para uma vida mais frutífera, organizada e próspera, qual é o primeiro medo ou dúvida que aparece no seu coração?"
-  },
-  {
-    key: "crenca_sobre_ricos",
-    text: "Você já pensou, mesmo em silêncio, que pessoas com muito dinheiro geralmente são arrogantes, egoístas, gananciosas ou frias?"
-  },
-  {
-    key: "medo_do_julgamento",
-    text: "Se sua vida financeira melhorasse muito, o que você acha que sua família, comunidade ou igreja pensaria sobre você?"
-  },
-  {
-    key: "talentos_parados",
-    text: "Em uma escala de 1 a 5, quanto você sente que está deixando talentos, ideias, dons ou oportunidades paradas por medo, insegurança ou falta de direção?"
-  },
-  {
-    key: "bloqueio_principal",
-    text: "O que mais te impede hoje de crescer, aprender, organizar melhor sua vida financeira ou desenvolver algo que Deus colocou no seu coração?"
-  },
-  {
-    key: "frase_sobre_dinheiro",
-    text: "Qual frase sobre dinheiro, riqueza ou prosperidade você mais ouviu na família, na igreja ou na vida que ainda influencia sua mente hoje?"
-  },
-  {
-    key: "sentimento_ao_prosperar",
-    text: "Quando você imagina Deus te abençoando financeiramente de forma honesta, você sente paz, culpa, medo, dúvida ou empolgação? Explique."
-  },
-  {
-    key: "area_travada",
-    text: "Qual área da sua vida parece mais travada hoje: finanças, disciplina, fé, coragem, conhecimento, visão de futuro ou ação prática?"
-  },
-  {
-    key: "imagem_de_deus",
-    text: "Você acredita que Deus se agrada quando uma pessoa administra bem seus recursos, cresce com sabedoria e usa prosperidade para servir outras pessoas? Por quê?"
-  },
-  {
-    key: "primeiro_passo",
-    text: "Qual pequeno passo você poderia dar nos próximos 7 dias para sair da estagnação e começar a caminhar com mais sabedoria, fé e responsabilidade?"
+Main block:
+Your strongest block appears to be connected to fear, uncertainty, lack of direction, or hesitation around financial growth and purpose.
+
+Where the blocks may be:
+- Fear of growing and being misunderstood
+- Uncertainty about money and prosperity
+- Possible false beliefs about wealth
+- Delayed action because of fear or lack of clarity
+
+Biblical encouragement:
+God does not expose a block to shame you. He reveals it to heal it, mature you, and move you forward. The Parable of the Talents teaches that fear should not bury what God placed in your hands.
+
+Dr. Nate correction:
+This is not the season to call fear humility. Sometimes fear wears church clothes and still needs deliverance from procrastination.
+
+Next 7 days:
+1. Pray and ask God for wisdom and courage.
+2. Learn one basic lesson about stewardship or financial organization.
+3. Take one small practical step with what God already gave you.
+
+Now tell me: How was your day today?`;
   }
-];
 
-function buildLocalFallbackDiagnosis(name, answersMap) {
   return `Diagnóstico inicial de ${name}:
 
-Você apresenta um padrão de bloqueio financeiro mais ligado ao medo de perda, falta de tempo e preocupação espiritual/social do que a uma rejeição real da prosperidade.
+Suas respostas mostram que o Senhor pode estar destacando áreas de crescimento, mordomia, coragem e responsabilidade na sua vida.
 
-Seu medo principal parece ser: "${answersMap.medo_inicial || "não informado"}".
+Bloqueio principal:
+O bloqueio mais forte parece estar ligado a medo, dúvida, falta de direção ou hesitação em relação ao crescimento financeiro e ao propósito.
 
-O ponto positivo é que você não demonstra odiar pessoas prósperas. Isso mostra que sua mente não está totalmente presa na crença de que dinheiro é mal. Porém, existe uma tensão entre prosperar, manter humildade e não ser mal interpretado pela comunidade.
+Onde podem estar os bloqueios:
+- Medo de crescer e ser mal interpretado
+- Insegurança sobre dinheiro e prosperidade
+- Possíveis crenças distorcidas sobre riqueza
+- Ação adiada por medo ou falta de clareza
 
-Seu nível de talentos enterrados foi: "${answersMap.talentos_enterrados || "não informado"}".
+Encorajamento bíblico:
+Deus não revela um bloqueio para te envergonhar. Ele revela para curar, amadurecer e te mover para frente. A Parábola dos Talentos mostra que medo não deve enterrar aquilo que Deus colocou nas suas mãos.
 
-Tratamento inicial do Dr. Nate:
-Você não precisa idolatrar dinheiro. Você precisa parar de chamar medo de “prudência espiritual”. A parábola dos talentos não elogia quem enterrou recurso por medo. Ela confronta esse padrão. Seu próximo passo é simples: estudar com constância, começar pequeno, aprender gestão de risco e tratar prosperidade como mordomia, não como vaidade.
+Correção do Dr. Nate:
+Essa não é a estação de chamar medo de humildade. Às vezes o medo veste roupa de culto e ainda precisa ser liberto da procrastinação.
 
-Pergunta para hoje:
-Como foi o seu dia hoje? Onde você percebeu procrastinação, medo ou desculpa disfarçada de humildade?`;
+Próximos 7 dias:
+1. Ore pedindo sabedoria e coragem.
+2. Aprenda uma lição básica sobre mordomia ou organização financeira.
+3. Dê um pequeno passo prático com aquilo que Deus já colocou nas suas mãos.
+
+Agora me diga: Como foi o seu dia hoje?`;
 }
 
 function App() {
+  const [language, setLanguage] = useState(
+    localStorage.getItem("menteProsperaLanguage") || "pt"
+  );
+
+  const t = translations[language] || translations.pt;
+  const questions = t.questions;
+
   const [step, setStep] = useState("welcome");
   const [fullName, setFullName] = useState("");
   const [nameSaving, setNameSaving] = useState(false);
@@ -97,15 +97,30 @@ function App() {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState("");
+
   const chatEndRef = useRef(null);
 
-  const progress = useMemo(
-    () => Math.round(((questionIndex + 1) / questions.length) * 100),
-    [questionIndex]
-  );
+  const progress = useMemo(() => {
+    return Math.round(((questionIndex + 1) / questions.length) * 100);
+  }, [questionIndex, questions.length]);
+
+  const toggleLanguage = () => {
+    const nextLanguage = language === "pt" ? "en" : "pt";
+    setLanguage(nextLanguage);
+    localStorage.setItem("menteProsperaLanguage", nextLanguage);
+    setQuestionIndex(0);
+    setCurrentAnswer("");
+    setAnswers([]);
+    setDiagnosisText("");
+    setMessages([]);
+    setError("");
+    setStep("welcome");
+  };
 
   const scrollToBottom = () => {
-    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+    setTimeout(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 80);
   };
 
   const createAnswersMap = (answersArray) => {
@@ -122,7 +137,7 @@ function App() {
     const cleanName = fullName.trim();
 
     if (!cleanName) {
-      setError("Digite seu nome completo para começar.");
+      setError(t.nameRequired);
       return;
     }
 
@@ -131,6 +146,7 @@ function App() {
 
       await addDoc(collection(db, "usuarios_terapia"), {
         nomeCompleto: cleanName,
+        idioma: language,
         criadoEm: new Date().toISOString(),
         origem: "Mente Próspera"
       });
@@ -138,7 +154,7 @@ function App() {
       setStep("onboarding");
     } catch (err) {
       console.error(err);
-      setError("Não consegui salvar seu nome no Firebase. Verifique as regras do Firestore.");
+      setError(t.firebaseNameError);
     } finally {
       setNameSaving(false);
     }
@@ -153,6 +169,7 @@ function App() {
         },
         body: JSON.stringify({
           name: fullName.trim(),
+          language,
           questions,
           answers: answersMap
         })
@@ -167,7 +184,7 @@ function App() {
       return data.diagnosis;
     } catch (err) {
       console.error("Diagnosis API failed. Using fallback:", err);
-      return buildLocalFallbackDiagnosis(fullName.trim(), answersMap);
+      return buildLocalFallbackDiagnosis(fullName.trim(), answersMap, language);
     }
   };
 
@@ -178,7 +195,7 @@ function App() {
     const cleanAnswer = currentAnswer.trim();
 
     if (!cleanAnswer) {
-      setError("Responda antes de continuar.");
+      setError(t.answerRequired);
       return;
     }
 
@@ -199,6 +216,7 @@ function App() {
 
       const diagnosticPayload = {
         nomeCompleto: fullName.trim(),
+        idioma: language,
         perguntas: questions.map((item) => item.text),
         respostas: answersMap,
         diagnosticoInicial: generatedDiagnosis,
@@ -215,18 +233,19 @@ function App() {
       setDiagnosisId(docRef.id);
       setDiagnosisText(generatedDiagnosis);
 
-      const assistantStart = {
-        role: "assistant",
-        content: generatedDiagnosis,
-        createdAt: new Date().toISOString()
-      };
+      setMessages([
+        {
+          role: "assistant",
+          content: generatedDiagnosis,
+          createdAt: new Date().toISOString()
+        }
+      ]);
 
-      setMessages([assistantStart]);
       setStep("dashboard");
       scrollToBottom();
     } catch (err) {
       console.error(err);
-      setError("Não consegui salvar seu diagnóstico no Firebase. Verifique as regras do Firestore.");
+      setError(t.firebaseDiagnosisError);
     } finally {
       setDiagnosisSaving(false);
     }
@@ -248,8 +267,9 @@ function App() {
       createdAt: new Date().toISOString()
     };
 
-    const nextMessages = [...messages, userMessage];
-    setMessages(nextMessages);
+    const nextMessages = [...messages, userMessage].slice(-MAX_CHAT_MESSAGES);
+
+    setMessages((prev) => [...prev, userMessage]);
     setChatInput("");
     setChatLoading(true);
     scrollToBottom();
@@ -264,13 +284,17 @@ function App() {
         },
         body: JSON.stringify({
           name: fullName.trim(),
+          language,
           diagnosisId,
           diagnosisText,
           diagnosis: {
             questions,
             answers: answersMap
           },
-          messages: nextMessages.map(({ role, content }) => ({ role, content }))
+          messages: nextMessages.map(({ role, content }) => ({
+            role,
+            content
+          }))
         })
       });
 
@@ -286,18 +310,17 @@ function App() {
         createdAt: new Date().toISOString()
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, assistantMessage].slice(-20));
       scrollToBottom();
     } catch (err) {
       console.error(err);
-      setError(
-        err.message ||
-          "Não consegui falar com o Dr. Nate agora. Confirme se o backend está rodando."
-      );
+      setError(t.chatError);
     } finally {
       setChatLoading(false);
     }
   };
+
+  const answersMap = createAnswersMap(answers);
 
   return (
     <main className="app-shell">
@@ -309,10 +332,15 @@ function App() {
         <div className="brand-mark">
           <BrainCircuit size={22} />
         </div>
+
         <div>
-          <p className="eyebrow">Mente Próspera</p>
-          <h1>Dr. Nate Therapy OS</h1>
+          <p className="eyebrow">{t.appName}</p>
+          <h1>{t.appSubtitle}</h1>
         </div>
+
+        <button className="language-button" type="button" onClick={toggleLanguage}>
+          {t.otherLanguage}
+        </button>
       </section>
 
       {step === "welcome" && (
@@ -320,17 +348,15 @@ function App() {
           <div className="glass-card welcome-card">
             <div className="icon-pill">
               <Sparkles size={18} />
-              Terapia, fé e neurociência financeira
+              {t.welcomePill}
             </div>
 
-            <h2>Vamos começar com seu nome.</h2>
-            <p className="muted">
-              Seu diagnóstico será salvo com segurança no Firestore para o Dr. Nate entender
-              seu padrão de medo, procrastinação e propósito.
-            </p>
+            <h2>{t.welcomeTitle}</h2>
+            <p className="muted">{t.welcomeText}</p>
 
             <form onSubmit={saveUserName} className="form-stack">
-              <label htmlFor="fullName">Nome completo</label>
+              <label htmlFor="fullName">{t.fullName}</label>
+
               <div className="input-wrap">
                 <UserRound size={18} />
                 <input
@@ -338,7 +364,7 @@ function App() {
                   type="text"
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
-                  placeholder="Digite seu nome completo"
+                  placeholder={t.fullNamePlaceholder}
                   autoComplete="name"
                 />
               </div>
@@ -349,11 +375,11 @@ function App() {
                 {nameSaving ? (
                   <>
                     <Loader2 className="spin" size={18} />
-                    Salvando...
+                    {t.saving}
                   </>
                 ) : (
                   <>
-                    Começar diagnóstico
+                    {t.startDiagnosis}
                     <ArrowRight size={18} />
                   </>
                 )}
@@ -368,7 +394,7 @@ function App() {
           <div className="glass-card question-card">
             <div className="question-topline">
               <span>
-                Pergunta {questionIndex + 1} de {questions.length}
+                {t.question} {questionIndex + 1} {t.of} {questions.length}
               </span>
               <strong>{progress}%</strong>
             </div>
@@ -380,12 +406,13 @@ function App() {
             <h2>{questions[questionIndex].text}</h2>
 
             <form onSubmit={saveAnswer} className="form-stack">
-              <label htmlFor="answer">Sua resposta</label>
+              <label htmlFor="answer">{t.answerLabel}</label>
+
               <textarea
                 id="answer"
                 value={currentAnswer}
                 onChange={(event) => setCurrentAnswer(event.target.value)}
-                placeholder="Responda com honestidade. Sem máscara religiosa, sem pose, sem teatro..."
+                placeholder={t.answerPlaceholder}
                 rows={6}
               />
 
@@ -395,16 +422,16 @@ function App() {
                 {diagnosisSaving ? (
                   <>
                     <Loader2 className="spin" size={18} />
-                    Gerando diagnóstico...
+                    {t.generatingDiagnosis}
                   </>
                 ) : questionIndex === questions.length - 1 ? (
                   <>
-                    Gerar meu diagnóstico
+                    {t.generateDiagnosis}
                     <CheckCircle2 size={18} />
                   </>
                 ) : (
                   <>
-                    Próxima pergunta
+                    {t.nextQuestion}
                     <ArrowRight size={18} />
                   </>
                 )}
@@ -418,16 +445,16 @@ function App() {
         <section className="dashboard">
           <div className="dashboard-header glass-card">
             <div>
-              <p className="eyebrow">Diagnóstico imediato</p>
-              <h2>Bem-vindo, {fullName.trim().split(" ")[0]}.</h2>
-              <p className="muted">
-                Seu diagnóstico já foi gerado e salvo. Agora o Dr. Nate continua o
-                acompanhamento diário.
-              </p>
+              <p className="eyebrow">{t.dashboardEyebrow}</p>
+              <h2>
+                {t.welcomeBack}, {fullName.trim().split(" ")[0]}.
+              </h2>
+              <p className="muted">{t.dashboardText}</p>
             </div>
+
             <div className="status-chip">
               <ShieldCheck size={16} />
-              Diagnóstico salvo
+              {t.diagnosisSaved}
             </div>
           </div>
 
@@ -435,13 +462,14 @@ function App() {
             <article className="glass-card chat-card">
               <div className="card-header">
                 <div>
-                  <p className="eyebrow">Sessão com IA</p>
+                  <p className="eyebrow">{t.sessionWithAi}</p>
                   <h3>
                     <MessageCircleHeart size={22} />
                     Dr. Nate
                   </h3>
                 </div>
-                <span className="live-dot">online</span>
+
+                <span className="live-dot">{t.online}</span>
               </div>
 
               <div className="chat-window">
@@ -462,7 +490,7 @@ function App() {
                   <div className="message-row message-assistant">
                     <div className="message-bubble typing">
                       <Loader2 className="spin" size={16} />
-                      Dr. Nate está preparando uma exortação terapêutica...
+                      {t.typing}
                     </div>
                   </div>
                 )}
@@ -474,8 +502,9 @@ function App() {
                 <input
                   value={chatInput}
                   onChange={(event) => setChatInput(event.target.value)}
-                  placeholder="Conte como foi seu dia hoje..."
+                  placeholder={t.chatPlaceholder}
                 />
+
                 <button type="submit" disabled={chatLoading || !chatInput.trim()}>
                   <ArrowRight size={18} />
                 </button>
@@ -488,30 +517,29 @@ function App() {
               <div className="metric-icon">
                 <Flame size={22} />
               </div>
-              <p className="eyebrow">Medo principal</p>
-              <h3>Raiz emocional</h3>
-              <p>{createAnswersMap(answers).medo_inicial}</p>
+              <p className="eyebrow">{t.mainFear}</p>
+              <h3>{t.emotionalRoot}</h3>
+              <p>{answersMap.visao_de_futuro || answersMap.medo_inicial}</p>
             </article>
 
             <article className="glass-card metric-card">
               <div className="metric-icon">
                 <PiggyBank size={22} />
               </div>
-              <p className="eyebrow">Crença sobre riqueza</p>
-              <h3>Dinheiro amplifica o coração</h3>
-              <p>{createAnswersMap(answers).crenca_sobre_ricos}</p>
+              <p className="eyebrow">{t.richBelief}</p>
+              <h3>{t.moneyAmplifies}</h3>
+              <p>{answersMap.crenca_sobre_ricos}</p>
             </article>
 
             <article className="glass-card metric-card wide-mobile">
               <div className="metric-icon">
                 <LineChart size={22} />
               </div>
-              <p className="eyebrow">Talentos financeiros</p>
-              <h3>Escala: {createAnswersMap(answers).talentos_enterrados}</h3>
-              <p>
-                A meta não é idolatrar dinheiro. É parar de usar falsa humildade como
-                cobertor para medo.
-              </p>
+              <p className="eyebrow">{t.financialTalents}</p>
+              <h3>
+                {t.scale}: {answersMap.talentos_parados || answersMap.talentos_enterrados}
+              </h3>
+              <p>{t.goalText}</p>
             </article>
           </div>
         </section>
