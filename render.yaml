@@ -1,0 +1,21 @@
+# render.yaml
+
+services:
+  - type: web
+    name: mente-prospera-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 10000
+      - key: OPENAI_MODEL
+        value: gpt-4
+      - key: CLIENT_URL
+        value: https://teepop-mentalidade.netlify.app
+      - key: OPENAI_API_KEY
+        sync: false
